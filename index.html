@@ -1712,6 +1712,97 @@
             font-size: 12px;
             border-radius: 0 6px 6px 0;
         }
+        
+        /* Live Sync Styles */
+        .sync-card {
+            background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px;
+            color: white;
+        }
+        .sync-card h4 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sync-card p {
+            font-size: 12px;
+            margin: 0 0 12px 0;
+            opacity: 0.9;
+        }
+        .sync-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .sync-input-group input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .sync-input-group button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .sync-btn-save {
+            background: #4caf50;
+            color: white;
+        }
+        .sync-btn-upload {
+            background: #ff9800;
+            color: white;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .sync-btn-refresh {
+            background: #4caf50;
+            color: white;
+            width: 100%;
+            padding: 12px;
+        }
+        .sync-status {
+            font-size: 11px;
+            text-align: center;
+            margin-top: 8px;
+            opacity: 0.8;
+        }
+        .sync-token-group {
+            margin-bottom: 12px;
+        }
+        .sync-token-group label {
+            font-size: 11px;
+            display: block;
+            margin-bottom: 4px;
+            opacity: 0.9;
+        }
+        .sync-token-group input {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            box-sizing: border-box;
+        }
+        .sync-divider {
+            border-top: 1px solid rgba(255,255,255,0.3);
+            margin: 15px 0;
+            padding-top: 15px;
+        }
+        .sync-section-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
@@ -1873,6 +1964,25 @@
                     <li><strong>Weekly Totals:</strong> Tracks same player wins across multiple weeks</li>
                 </ul>
                 <div class="howto-tip">💡 Perfect for tracking who owes what at the end of a golf trip!</div>
+            </div>
+            
+            <div class="howto-section">
+                <h4>🔄 LIVE SYNC (Multiplayer)</h4>
+                <p>Share live leaderboard updates with your golf group!</p>
+                <ul>
+                    <li><strong>How it works:</strong> Admin uploads scores to cloud, others refresh to see updates</li>
+                    <li><strong>One-time setup (Admin only):</strong></li>
+                    <li style="margin-left:15px">1. Get a free GitHub token (link in app)</li>
+                    <li style="margin-left:15px">2. Paste token in the "GitHub Token" field</li>
+                    <li style="margin-left:15px">3. Click "Upload Current Scores to Cloud"</li>
+                    <li style="margin-left:15px">4. Share the generated URL with your group</li>
+                    <li><strong>For all players:</strong></li>
+                    <li style="margin-left:15px">1. Paste the shared URL in "Sync URL" field</li>
+                    <li style="margin-left:15px">2. Click "🔄 Refresh Leaderboard" to get latest scores</li>
+                    <li><strong>Admin updates:</strong> Click "Upload" after entering new scores</li>
+                    <li><strong>Players refresh:</strong> Click "Refresh" to see latest updates</li>
+                </ul>
+                <div class="howto-tip">💡 Not real-time automatic - players tap Refresh to get updates. Zero maintenance, free forever!</div>
             </div>
             
             <div class="howto-section">
@@ -2212,6 +2322,29 @@
                 <p style="font-size:11px;color:#666;margin-bottom:8px;">Winners assigned in Competitions tab will appear here automatically.</p>
                 <div class="winners-list" id="compWinnersList"></div>
             </div>
+        </div>
+        
+        <!-- Live Sync Section -->
+        <div class="sync-card">
+            <h4>🔄 Live Sync (Share with Group)</h4>
+            <p>Allow other players to see live leaderboard updates by sharing a sync URL.</p>
+            
+            <div class="sync-section-title">📤 Admin: Upload Scores</div>
+            <div class="sync-token-group">
+                <label>GitHub Token (one-time setup - <a href="https://github.com/settings/tokens/new?scopes=gist&description=Golf%20App%20Sync" target="_blank" style="color:#90caf9;">Get token here</a>)</label>
+                <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx" onchange="saveGithubToken()">
+            </div>
+            <button class="sync-btn-upload" onclick="uploadToGist()">📤 Upload Current Scores to Cloud</button>
+            
+            <div class="sync-divider"></div>
+            
+            <div class="sync-section-title">📥 Everyone: Get Updates</div>
+            <div class="sync-input-group">
+                <input type="text" id="syncUrlInput" placeholder="Paste Gist Raw URL here...">
+                <button class="sync-btn-save" onclick="saveSyncUrl()">Save</button>
+            </div>
+            <button class="sync-btn-refresh" onclick="refreshFromSync()">🔄 Refresh Leaderboard from Cloud</button>
+            <div class="sync-status" id="syncStatus">No sync URL configured</div>
         </div>
         
         <div class="action-buttons">
@@ -5361,6 +5494,192 @@
                 isDragging = false;
             });
         })();
+        
+        // ==================== LIVE SYNC ====================
+        let syncGistId = localStorage.getItem('golfSyncGistId') || null;
+        
+        function saveGithubToken() {
+            const token = document.getElementById('githubToken').value.trim();
+            if (token) {
+                localStorage.setItem('golfGithubToken', token);
+                showToast('GitHub token saved!');
+            }
+        }
+        
+        function loadSyncSettings() {
+            const token = localStorage.getItem('golfGithubToken') || '';
+            const syncUrl = localStorage.getItem('golfSyncUrl') || '';
+            
+            if (document.getElementById('githubToken')) {
+                document.getElementById('githubToken').value = token ? '••••••••••••••••' : '';
+            }
+            if (document.getElementById('syncUrlInput')) {
+                document.getElementById('syncUrlInput').value = syncUrl;
+            }
+            updateSyncStatus();
+        }
+        
+        function updateSyncStatus() {
+            const statusEl = document.getElementById('syncStatus');
+            if (!statusEl) return;
+            
+            const syncUrl = localStorage.getItem('golfSyncUrl');
+            const lastSync = localStorage.getItem('golfLastSync');
+            
+            if (syncUrl) {
+                if (lastSync) {
+                    const date = new Date(parseInt(lastSync));
+                    statusEl.textContent = `Last refreshed: ${date.toLocaleString()}`;
+                } else {
+                    statusEl.textContent = 'Sync URL configured ✓';
+                }
+            } else {
+                statusEl.textContent = 'No sync URL configured';
+            }
+        }
+        
+        function saveSyncUrl() {
+            const url = document.getElementById('syncUrlInput').value.trim();
+            if (url) {
+                localStorage.setItem('golfSyncUrl', url);
+                showToast('Sync URL saved!');
+                updateSyncStatus();
+            } else {
+                localStorage.removeItem('golfSyncUrl');
+                showToast('Sync URL cleared');
+                updateSyncStatus();
+            }
+        }
+        
+        async function uploadToGist() {
+            const token = localStorage.getItem('golfGithubToken');
+            if (!token) {
+                showToast('Please enter GitHub token first');
+                return;
+            }
+            
+            const data = JSON.stringify(appData, null, 2);
+            const filename = 'golf_sync_data.json';
+            
+            try {
+                let response;
+                const gistId = localStorage.getItem('golfSyncGistId');
+                
+                if (gistId) {
+                    // Update existing gist
+                    response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            files: {
+                                [filename]: { content: data }
+                            }
+                        })
+                    });
+                } else {
+                    // Create new gist
+                    response = await fetch('https://api.github.com/gists', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            description: 'Golf Tournament Sync Data - ' + appData.settings.competitionName,
+                            public: false,
+                            files: {
+                                [filename]: { content: data }
+                            }
+                        })
+                    });
+                }
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || 'Upload failed');
+                }
+                
+                const result = await response.json();
+                const newGistId = result.id;
+                localStorage.setItem('golfSyncGistId', newGistId);
+                
+                // Get raw URL
+                const rawUrl = result.files[filename].raw_url;
+                
+                // Auto-fill the sync URL
+                document.getElementById('syncUrlInput').value = rawUrl;
+                localStorage.setItem('golfSyncUrl', rawUrl);
+                
+                // Copy to clipboard
+                try {
+                    await navigator.clipboard.writeText(rawUrl);
+                    showToast('Uploaded! URL copied to clipboard - share with group!');
+                } catch(e) {
+                    showToast('Uploaded! Copy the URL below to share.');
+                }
+                
+                updateSyncStatus();
+                
+            } catch(err) {
+                console.error('Upload error:', err);
+                showToast('Upload failed: ' + err.message);
+            }
+        }
+        
+        async function refreshFromSync() {
+            const syncUrl = localStorage.getItem('golfSyncUrl');
+            if (!syncUrl) {
+                showToast('Please enter a sync URL first');
+                return;
+            }
+            
+            try {
+                showToast('Refreshing...');
+                
+                const response = await fetch(syncUrl, {
+                    cache: 'no-store'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+                
+                const data = await response.json();
+                
+                // Update appData with synced data
+                appData = data;
+                
+                // Save locally
+                saveData();
+                
+                // Refresh all views
+                recalculateAllHandicaps();
+                renderLeaderboard();
+                renderPlayersList();
+                updateSettingsForm();
+                renderWinningTracker();
+                
+                // Update last sync time
+                localStorage.setItem('golfLastSync', Date.now().toString());
+                updateSyncStatus();
+                
+                showToast('Leaderboard updated from cloud!');
+                
+            } catch(err) {
+                console.error('Sync error:', err);
+                showToast('Refresh failed: ' + err.message);
+            }
+        }
+        
+        // Load sync settings on init
+        const originalInit = init;
+        init = function() {
+            originalInit();
+            setTimeout(loadSyncSettings, 100);
+        };
         
         // Initialize
         init();
