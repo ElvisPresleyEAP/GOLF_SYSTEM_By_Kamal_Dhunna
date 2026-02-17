@@ -5518,10 +5518,11 @@
         })();
         
         // ==================== LIVE SYNC ====================
-        let syncGistId = localStorage.getItem('golfSyncGistId') || null;
+        // Hardcoded Gist ID - ensures all uploads go to the same location
+        const HARDCODED_GIST_ID = '174e67638d55695abfaceb2f0774f56d';
         
         // Default Sync URL - pre-configured for easy sharing (viewers can refresh immediately)
-        const DEFAULT_SYNC_URL = 'https://gist.githubusercontent.com/ElvisPresleyEAP/8dbee8f731b089fe5c72b32f021c8f88/raw/golf_sync_data.json';
+        const DEFAULT_SYNC_URL = 'https://gist.githubusercontent.com/ElvisPresleyEAP/174e67638d55695abfaceb2f0774f56d/raw/golf_sync_data.json';
         
         function saveGithubToken() {
             const token = document.getElementById('githubToken').value.trim();
@@ -5592,65 +5593,27 @@
             const filename = 'golf_sync_data.json';
             
             try {
-                let response;
-                const gistId = localStorage.getItem('golfSyncGistId');
-                
-                if (gistId) {
-                    // Update existing gist
-                    response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Authorization': `token ${token}`,
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            files: {
-                                [filename]: { content: data }
-                            }
-                        })
-                    });
-                } else {
-                    // Create new gist
-                    response = await fetch('https://api.github.com/gists', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `token ${token}`,
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            description: 'Golf Tournament Sync Data - ' + appData.settings.competitionName,
-                            public: false,
-                            files: {
-                                [filename]: { content: data }
-                            }
-                        })
-                    });
-                }
+                // Always use the hardcoded Gist ID - ensures consistent URL
+                const response = await fetch(`https://api.github.com/gists/${HARDCODED_GIST_ID}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        files: {
+                            [filename]: { content: data }
+                        }
+                    })
+                });
                 
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.message || 'Upload failed');
                 }
                 
-                const result = await response.json();
-                const newGistId = result.id;
-                localStorage.setItem('golfSyncGistId', newGistId);
-                
-                // Use stable URL format that always fetches latest (not version-specific raw_url)
-                const stableUrl = `https://gist.githubusercontent.com/${result.owner.login}/${newGistId}/raw/${filename}`;
-                
-                // Auto-fill the sync URL
-                document.getElementById('syncUrlInput').value = stableUrl;
-                localStorage.setItem('golfSyncUrl', stableUrl);
-                
-                // Copy to clipboard
-                try {
-                    await navigator.clipboard.writeText(rawUrl);
-                    showToast('Uploaded! URL copied to clipboard - share with group!');
-                } catch(e) {
-                    showToast('Uploaded! Copy the URL below to share.');
-                }
-                
+                // Don't overwrite the sync URL - keep the default
+                showToast('Scores uploaded to cloud!');
                 updateSyncStatus();
                 
             } catch(err) {
@@ -5716,4 +5679,3 @@
     </script>
 </body>
 </html>
-
